@@ -1,0 +1,50 @@
+# systemd unit for the server-manager web app + Discord bot (single process).
+#
+# Install (see README.md for the full procedure):
+#   sudo cp server-manager.service /etc/systemd/system/server-manager.service
+#   sudo mkdir -p /etc/server-manager && sudo touch /etc/server-manager/env
+#   sudo chmod 0600 /etc/server-manager/env     # holds DISCORD_TOKEN etc.
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now server-manager.service
+
+[Unit]
+Description=Game server manager (web UI + Discord bot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=svmgr
+Group=svmgr
+
+# Must be the app install directory: migrations are read from ./drizzle
+# relative to this directory (or set MIGRATIONS_PATH in the env file).
+WorkingDirectory=/opt/server-manager
+
+ExecStart=/usr/bin/node build/index.js
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# ORIGIN is REQUIRED by adapter-node's CSRF protection — set it to the
+# externally visible URL (scheme included), e.g. https://games.example.com
+Environment=ORIGIN=http://localhost:3000
+Environment=SYSTEMCTL_MODE=real
+Environment=DATABASE_PATH=/var/lib/server-manager/data.db
+
+# Secrets and machine-specific overrides (DISCORD_TOKEN=...) live outside the
+# unit file. Leading '-' = optional; missing file is not an error.
+EnvironmentFile=-/etc/server-manager/env
+
+Restart=on-failure
+RestartSec=5
+
+# Hardening. /var/lib/server-manager must exist and be owned by svmgr (0700).
+# NoNewPrivileges must stay OFF (false/absent): the app invokes sudo for
+# `systemctl start/stop game-*.service` and NoNewPrivileges=true breaks sudo.
+NoNewPrivileges=false
+ProtectSystem=full
+ReadWritePaths=/var/lib/server-manager
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

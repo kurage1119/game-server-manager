@@ -1,0 +1,39 @@
+{
+  "name": "server_manager2",
+  "version": "1.0.0",
+  "description": "Game server management tool (SvelteKit + systemd)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate"
+  },
+  "license": "ISC",
+  "overrides": {
+    "undici": "^6.27.0"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "better-sqlite3": "^11.10.0",
+    "discord.js": "^14.26.5",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-node": "^5.5.7",
+    "@sveltejs/kit": "^2.69.2",
+    "@sveltejs/vite-plugin-svelte": "^5.1.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.20.1",
+    "drizzle-kit": "^0.31.10",
+    "svelte": "^5.56.4",
+    "svelte-check": "^4.7.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3",
+    "vitest": "^3.2.7"
+  }
+}

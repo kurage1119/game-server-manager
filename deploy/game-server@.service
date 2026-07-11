@@ -1,0 +1,48 @@
+# Sample systemd template unit for game servers managed by server-manager.
+#
+# The manager can only control units named game-*.service (enforced both by
+# its unit-name validation and by the sudoers rule), so name your instances
+# accordingly. With this TEMPLATE unit, an instance like
+#   game-server@minecraft.service
+# does NOT match game-*.service in sudoers; template instances are therefore
+# best registered per-game as concrete units instead. Two options:
+#
+#   Option A (recommended): one concrete unit per game, e.g.
+#     /etc/systemd/system/game-minecraft.service  (copy this file, drop the @,
+#     hardcode the working directory / start command)
+#
+#   Option B: keep this template but add each instance to sudoers explicitly.
+#
+# Register in the manager with the exact unit name, e.g. "game-minecraft.service".
+#
+# Install:
+#   sudo cp game-server@.service /etc/systemd/system/game-minecraft.service
+#   (edit the paths/commands below for the actual game)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable game-minecraft.service   # optional: start on boot
+
+[Unit]
+Description=Game server (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Run each game under its own unprivileged user.
+User=games
+Group=games
+WorkingDirectory=/opt/games/%i
+# Replace with the actual server start command:
+ExecStart=/opt/games/%i/start.sh
+# Give games time to save on shutdown.
+TimeoutStopSec=90
+Restart=on-failure
+RestartSec=5
+
+# Basic hardening (loosen if the game needs more).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

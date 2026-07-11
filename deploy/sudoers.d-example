@@ -1,0 +1,18 @@
+# sudoers rule for the server-manager service user (svmgr).
+#
+# Allows svmgr to start/stop ONLY units matching game-*.service, with no
+# password. Status checks (`systemctl is-active`) need no privileges and are
+# NOT listed here on purpose.
+#
+# The application additionally enforces ^game-[A-Za-z0-9_.@-]+\.service$ on
+# every unit name before invoking sudo, and never goes through a shell
+# (execFile with an argv array), so glob/metacharacter tricks cannot widen
+# this rule from the app side.
+#
+# Install:
+#   1. Copy this file:            sudo cp sudoers.d-example /etc/sudoers.d/server-manager
+#   2. Fix permissions:           sudo chmod 0440 /etc/sudoers.d/server-manager
+#   3. ALWAYS validate:           sudo visudo -c
+#      (a broken file in /etc/sudoers.d can lock you out of sudo entirely)
+
+svmgr ALL=(root) NOPASSWD: /usr/bin/systemctl start game-*.service, /usr/bin/systemctl stop game-*.service
