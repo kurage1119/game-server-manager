@@ -17,6 +17,17 @@ export async function syncGuildCommands(client: Client<true>): Promise<void> {
 	const wantedGuildIds = new Set(await listDistinctGuildIds(getDb()));
 	const commands = buildCommands();
 
+	// This app registers commands only per-guild, so any GLOBAL command under this
+	// application id is always stale — e.g. one left behind by a different tool or an
+	// earlier prototype. Clearing it every sync keeps the whole registration
+	// self-healing and stops old commands from being suggested in DMs / all guilds.
+	try {
+		await rest.put(Routes.applicationCommands(applicationId), { body: [] });
+		console.log('[discord] cleared stale global commands');
+	} catch (e) {
+		console.error('[discord] failed to clear global commands:', e);
+	}
+
 	// Register (overwrite) in every guild that should have the commands.
 	for (const guildId of wantedGuildIds) {
 		try {
