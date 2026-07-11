@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { base } from '$app/paths';
+	import { confirm } from '$lib/components/confirm.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -140,17 +141,22 @@
 								<td class="mono">{channel.guildId}</td>
 								<td class="mono">{channel.channelId}</td>
 								<td class="col-actions">
-									<form method="POST" action="?/removeDiscordChannel">
+									<form
+										method="POST"
+										action="?/removeDiscordChannel"
+										onsubmit={async (e) => {
+											e.preventDefault();
+											const el = e.currentTarget;
+											const ok = await confirm({
+												title: 'チャンネルの許可を削除しますか?',
+												body: 'このチャンネルからのスラッシュコマンド操作ができなくなります。',
+												confirmLabel: '削除する'
+											});
+											if (ok) el.submit();
+										}}
+									>
 										<input type="hidden" name="rowId" value={channel.id} />
-										<button
-											type="submit"
-											class="btn btn--danger-soft btn--sm"
-											onclick={(e) => {
-												if (!confirm('このチャンネルの許可を削除します。よろしいですか?')) {
-													e.preventDefault();
-												}
-											}}>削除</button
-										>
+										<button type="submit" class="btn btn--danger-soft btn--sm">削除</button>
 									</form>
 								</td>
 							</tr>
@@ -196,10 +202,15 @@
 		<form
 			method="POST"
 			action="?/delete"
-			onsubmit={(e) => {
-				if (!confirm(`サーバー「${data.server.name}」を削除します。よろしいですか?`)) {
-					e.preventDefault();
-				}
+			onsubmit={async (e) => {
+				e.preventDefault();
+				const el = e.currentTarget;
+				const ok = await confirm({
+					title: 'サーバーを削除しますか?',
+					body: `${data.server.name} を削除します。権限設定と Discord 設定も一緒に消えます。この操作は取り消せません。`,
+					confirmLabel: '削除する'
+				});
+				if (ok) el.submit();
 			}}
 		>
 			<button type="submit" class="btn btn--danger">このサーバーを削除</button>

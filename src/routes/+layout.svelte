@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { base } from '$app/paths';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
 
@@ -36,6 +37,8 @@
 {/if}
 
 {@render children()}
+
+<ConfirmDialog />
 
 <style>
 	form {

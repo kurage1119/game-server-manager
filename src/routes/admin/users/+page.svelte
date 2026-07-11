@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { confirm } from '$lib/components/confirm.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -70,33 +71,39 @@
 						<td class="mono muted">{user.createdAt}</td>
 						<td class="col-actions">
 							<div class="row-actions">
-								<form method="POST" action="?/reissuePassword">
+								<form
+									method="POST"
+									action="?/reissuePassword"
+									onsubmit={async (e) => {
+										e.preventDefault();
+										const el = e.currentTarget;
+										const ok = await confirm({
+											title: '仮パスワードを再発行しますか?',
+											body: `${user.username} の現在のパスワードは無効になり、新しい仮パスワードが発行されます。既存のログインセッションはすべて無効になります。`,
+											confirmLabel: '再発行する'
+										});
+										if (ok) el.submit();
+									}}
+								>
 									<input type="hidden" name="userId" value={user.id} />
-									<button
-										type="submit"
-										class="btn btn--ghost btn--sm"
-										onclick={(e) => {
-											if (
-												!confirm(
-													`${user.username} の仮パスワードを再発行します。既存のログインセッションはすべて無効になります。よろしいですか?`
-												)
-											) {
-												e.preventDefault();
-											}
-										}}>仮PW再発行</button
-									>
+									<button type="submit" class="btn btn--ghost btn--sm">仮PW再発行</button>
 								</form>
-								<form method="POST" action="?/delete">
+								<form
+									method="POST"
+									action="?/delete"
+									onsubmit={async (e) => {
+										e.preventDefault();
+										const el = e.currentTarget;
+										const ok = await confirm({
+											title: 'ユーザーを削除しますか?',
+											body: `${user.username} を削除します。この操作は取り消せません。`,
+											confirmLabel: '削除する'
+										});
+										if (ok) el.submit();
+									}}
+								>
 									<input type="hidden" name="userId" value={user.id} />
-									<button
-										type="submit"
-										class="btn btn--danger-soft btn--sm"
-										onclick={(e) => {
-											if (!confirm(`ユーザー「${user.username}」を削除します。よろしいですか?`)) {
-												e.preventDefault();
-											}
-										}}>削除</button
-									>
+									<button type="submit" class="btn btn--danger-soft btn--sm">削除</button>
 								</form>
 							</div>
 						</td>

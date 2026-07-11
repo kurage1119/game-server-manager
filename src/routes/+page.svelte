@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { base } from '$app/paths';
+	import { confirm } from '$lib/components/confirm.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -112,12 +113,26 @@
 									起動
 								</button>
 							</form>
-							<form method="POST" action="?/stop">
-								<input type="hidden" name="serverId" value={server.id} />
-								<button type="submit" class="btn btn--stop" disabled={!canStop(server.status)}>
-									停止
-								</button>
-							</form>
+							<form
+									method="POST"
+									action="?/stop"
+									onsubmit={async (e) => {
+										e.preventDefault();
+										const el = e.currentTarget;
+										const ok = await confirm({
+											title: 'サーバーを停止しますか?',
+											body: `${server.name} を停止します。接続中のプレイヤーは切断されます。`,
+											confirmLabel: '停止する',
+											variant: 'warning'
+										});
+										if (ok) el.submit();
+									}}
+								>
+									<input type="hidden" name="serverId" value={server.id} />
+									<button type="submit" class="btn btn--stop" disabled={!canStop(server.status)}>
+										停止
+									</button>
+								</form>
 						</div>
 					{/if}
 				</div>
