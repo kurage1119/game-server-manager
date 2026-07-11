@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { base } from '$app/paths';
 import type { Actions } from './$types';
 import { getDb } from '$lib/server/db';
 import { createAdminUser } from '$lib/server/services/userService';
@@ -43,6 +44,6 @@ export const actions: Actions = {
 		const { token, expiresAt } = await createSession(getDb(), user.id);
 		setSessionCookie(cookies, url.protocol === 'https:', token, expiresAt);
 
-		throw redirect(303, '/');
+		throw redirect(303, `${base}/`);
 	}
 };

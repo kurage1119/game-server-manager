@@ -1,4 +1,5 @@
 import { fail, redirect, error } from '@sveltejs/kit';
+import { base } from '$app/paths';
 import type { Actions, PageServerLoad } from './$types';
 import { getDb } from '$lib/server/db';
 import { getServerById, updateServer, deleteServer } from '$lib/server/services/serverService';
@@ -65,7 +66,7 @@ export const actions: Actions = {
 		// Removing a server also removes its channel grants (FK cascade) — commands
 		// may need to disappear from now-unlisted guilds.
 		requestCommandResync();
-		throw redirect(303, '/admin/servers');
+		throw redirect(303, `${base}/admin/servers`);
 	},
 
 	setPermission: async ({ request, params, locals }) => {

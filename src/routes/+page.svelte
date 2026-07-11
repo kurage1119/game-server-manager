@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -17,7 +18,7 @@
 		async function poll() {
 			if (document.visibilityState !== 'visible') return;
 			try {
-				const res = await fetch('/api/status');
+				const res = await fetch(`${base}/api/status`);
 				if (!res.ok) return;
 				const body = (await res.json()) as { servers: Entry[] };
 				if (!cancelled) polled = body.servers;

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -30,7 +31,7 @@
 							<td>{server.name}</td>
 							<td class="mono muted">{server.unitName}</td>
 							<td class="col-actions">
-								<a href="/admin/servers/{server.id}" class="btn btn--ghost btn--sm">詳細 →</a>
+								<a href="{base}/admin/servers/{server.id}" class="btn btn--ghost btn--sm">詳細 →</a>
 							</td>
 						</tr>
 					{/each}

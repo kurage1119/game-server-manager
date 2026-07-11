@@ -1,0 +1,59 @@
+# nginx リバースプロキシ設定例(server-manager)
+#
+# アプリは adapter-node の Node サーバー(既定 127.0.0.1:3000)として動く。
+# nginx で TLS 終端し、以下のヘッダを渡すことで:
+#   - X-Forwarded-Proto → アプリが外部の https を認識し Secure Cookie を発行
+#     (systemd ユニットで PROTOCOL_HEADER=x-forwarded-proto を設定すること)
+#   - X-Forwarded-Host  → 外部ホスト名を再構成(HOST_HEADER=x-forwarded-host)
+# WebSocket は使っていないので Upgrade 系ヘッダは不要。
+#
+# 2通りの構成例を示す。どちらか一方を使う。
+
+# ────────────────────────────────────────────────────────────
+# 例A: ルート配信(https://games.example.com/)
+#   BASE_PATH は未設定でビルド(既定)。ORIGIN=https://games.example.com
+# ────────────────────────────────────────────────────────────
+server {
+    listen 443 ssl;
+    server_name games.example.com;
+
+    # ssl_certificate / ssl_certificate_key はご利用の証明書に合わせる
+    # ssl_certificate     /etc/letsencrypt/live/games.example.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/games.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+    }
+}
+
+# ────────────────────────────────────────────────────────────
+# 例B: サブパス配信(https://example.com/server-manager/)
+#   ビルド時に BASE_PATH=/server-manager を指定してビルドすること。
+#   ORIGIN=https://example.com(スキーム+ホストのみ。パスは含めない)
+#
+#   重要: proxy_pass の URL に末尾スラッシュを付けない / rewrite しない。
+#   パス(/server-manager/...)をそのまま Node へ渡すことで、SvelteKit の
+#   paths.base の期待と一致する。末尾スラッシュを付けると base が二重に
+#   剥がれてルーティングが壊れる。
+# ────────────────────────────────────────────────────────────
+server {
+    listen 443 ssl;
+    server_name example.com;
+
+    # ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+
+    location /server-manager {
+        proxy_pass http://127.0.0.1:3000;   # ← 末尾スラッシュなし(パス透過)
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+    }
+}

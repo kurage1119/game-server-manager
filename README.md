@@ -65,6 +65,24 @@ sudo systemctl enable --now server-manager
 
 DB は `/var/lib/server-manager/data.db`(起動時に自動作成・マイグレーション適用)。バックアップはこのファイル(と `-wal`)のコピーで足りる。
 
+## リバースプロキシ / サブパス配信
+
+nginx などで TLS 終端し、その背後にこのアプリ(adapter-node の Node サーバー、既定 `127.0.0.1:3000`)を置く構成に対応している。設定例は [`deploy/nginx.conf.example`](deploy/nginx.conf.example)(ルート配信版・サブパス版の2例)を参照。
+
+- **TLS 終端**: プロキシ背後の内部リクエストは平文 http のため、そのままでは Secure Cookie が付かない。systemd ユニット(`deploy/server-manager.service`)の `PROTOCOL_HEADER=x-forwarded-proto` / `HOST_HEADER=x-forwarded-host` を有効にし、プロキシ側で対応する `X-Forwarded-Proto` / `X-Forwarded-Host` を送ること。これで adapter-node が外部の scheme/host を再構成し、Secure Cookie と CSRF オリジン判定が正しく効く。
+- **`ORIGIN`**: 外部から見える scheme+host のみ(例 `https://example.com`)。**サブパスは含めない**。
+
+### サブパス(コンテキストパス)配信
+
+`https://example.com/server-manager/` のようにサブパス配下へ置く場合、SvelteKit の `paths.base` を使う。これは**ビルド時定数**なので、環境変数 `BASE_PATH` を指定して**ビルドし直す**必要がある(未指定なら従来通りルート `/` 配信)。
+
+```bash
+# ビルド時にサブパスを指定(先頭 '/'・末尾スラッシュなし)
+BASE_PATH=/server-manager npm ci && BASE_PATH=/server-manager npm run build
+```
+
+nginx 側は `deploy/nginx.conf.example` の「例B」のとおり、`location /server-manager { proxy_pass http://127.0.0.1:3000; }` と**末尾スラッシュなし**でパスをそのまま透過させる(rewrite しない)。末尾スラッシュを付けると base が二重に剥がれてルーティングが壊れる。
+
 ## Discord Bot セットアップ
 
 1. **Bot 作成**: [Discord Developer Portal](https://discord.com/developers/applications) → New Application → Bot タブでトークンを発行(**Privileged Gateway Intents は不要**)

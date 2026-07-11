@@ -26,10 +26,20 @@ ExecStart=/usr/bin/node build/index.js
 Environment=NODE_ENV=production
 Environment=PORT=3000
 # ORIGIN is REQUIRED by adapter-node's CSRF protection — set it to the
-# externally visible URL (scheme included), e.g. https://games.example.com
+# externally visible URL (scheme included, NO subpath), e.g. https://games.example.com
 Environment=ORIGIN=http://localhost:3000
 Environment=SYSTEMCTL_MODE=real
 Environment=DATABASE_PATH=/var/lib/server-manager/data.db
+
+# Reverse proxy (see deploy/nginx.conf.example). Behind a TLS-terminating proxy
+# the internal request is plain http; these let adapter-node reconstruct the
+# external protocol/host so Secure cookies and CSRF origin checks work. The proxy
+# MUST set the matching X-Forwarded-* headers. Remove them if not proxied.
+Environment=PROTOCOL_HEADER=x-forwarded-proto
+Environment=HOST_HEADER=x-forwarded-host
+#Environment=XFF_DEPTH=1
+# Subpath (context path) is a BUILD-TIME setting, not an env var here: build with
+# BASE_PATH=/server-manager before deploying (see README). ORIGIN stays scheme+host.
 
 # Secrets and machine-specific overrides (DISCORD_TOKEN=...) live outside the
 # unit file. Leading '-' = optional; missing file is not an error.

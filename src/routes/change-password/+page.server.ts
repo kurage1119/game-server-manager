@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { base } from '$app/paths';
 import type { Actions, PageServerLoad } from './$types';
 import { getDb } from '$lib/server/db';
 import { verifyCredentials, updatePassword } from '$lib/server/services/userService';
@@ -15,7 +16,7 @@ export const actions: Actions = {
 		const user = locals.user;
 		if (!user) {
 			// Defense in depth: hooks.server.ts already blocks anonymous access here.
-			throw redirect(303, '/login');
+			throw redirect(303, `${base}/login`);
 		}
 
 		const form = await request.formData();
@@ -37,6 +38,6 @@ export const actions: Actions = {
 
 		await updatePassword(getDb(), user.id, newPassword);
 
-		throw redirect(303, '/');
+		throw redirect(303, `${base}/`);
 	}
 };

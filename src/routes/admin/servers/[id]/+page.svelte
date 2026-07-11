@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -15,7 +16,7 @@
 </svelte:head>
 
 <main class="page">
-	<a href="/admin/servers" class="back-link">← サーバー一覧へ戻る</a>
+	<a href="{base}/admin/servers" class="back-link">← サーバー一覧へ戻る</a>
 	<h1 class="page-title detail-title">サーバー詳細: {data.server.name}</h1>
 
 	{#if form?.error}

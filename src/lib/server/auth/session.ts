@@ -1,4 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto';
+import { base } from '$app/paths';
 import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { Cookies } from '@sveltejs/kit';
@@ -110,7 +111,7 @@ export async function invalidateAllUserSessions(db: DB, userId: number): Promise
 /** Shared cookie shape so hooks.server.ts (refresh) and the login/setup actions (initial set) never drift apart. */
 export function setSessionCookie(cookies: Cookies, secure: boolean, token: string, expiresAt: Date): void {
 	cookies.set(SESSION_COOKIE_NAME, token, {
-		path: '/',
+		path: base || '/',
 		httpOnly: true,
 		sameSite: 'lax',
 		secure,
@@ -119,5 +120,5 @@ export function setSessionCookie(cookies: Cookies, secure: boolean, token: strin
 }
 
 export function clearSessionCookie(cookies: Cookies): void {
-	cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+	cookies.delete(SESSION_COOKIE_NAME, { path: base || '/' });
 }

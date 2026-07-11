@@ -1,4 +1,5 @@
 import { redirect, error, json, type Cookies } from '@sveltejs/kit';
+import { base } from '$app/paths';
 import type { DB } from '../db';
 import { SESSION_COOKIE_NAME, validateSessionToken, setSessionCookie, clearSessionCookie } from './session';
 import type { SessionUser } from './session';
@@ -40,7 +41,10 @@ export async function applySessionAndGuards(
 		}
 	}
 
-	const { pathname } = event.url;
+	// event.url.pathname includes the configured base (paths.base is only stripped
+	// for route matching, not from event.url). Strip it so the literal comparisons
+	// below stay base-relative. base is '' when no subpath is configured.
+	const pathname = event.url.pathname.slice(base.length) || '/';
 	const isApi = pathname.startsWith('/api/');
 	const user = event.locals.user;
 
@@ -52,11 +56,11 @@ export async function applySessionAndGuards(
 			if (isApi) {
 				return json({ error: 'setup_required' }, { status: 403 });
 			}
-			throw redirect(303, '/setup');
+			throw redirect(303, `${base}/setup`);
 		}
 	} else if (pathname === '/setup') {
 		// Setup is a one-time action; once an admin exists, re-running it is disabled.
-		throw redirect(303, '/');
+		throw redirect(303, `${base}/`);
 	}
 
 	// --- Guard 2: authentication required ------------------------------------
@@ -64,7 +68,7 @@ export async function applySessionAndGuards(
 		if (isApi) {
 			return json({ error: 'unauthorized' }, { status: 401 });
 		}
-		throw redirect(303, '/login');
+		throw redirect(303, `${base}/login`);
 	}
 
 	// --- Guard 3: forced password change --------------------------------------
@@ -72,7 +76,7 @@ export async function applySessionAndGuards(
 		if (isApi) {
 			return json({ error: 'password_change_required' }, { status: 403 });
 		}
-		throw redirect(303, '/change-password');
+		throw redirect(303, `${base}/change-password`);
 	}
 
 	// --- Guard 4: admin-only area ----------------------------------------------
