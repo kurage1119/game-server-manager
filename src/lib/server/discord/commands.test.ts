@@ -21,6 +21,9 @@ interface FakeChatInteraction {
 	user: { tag: string; username: string };
 	options: { getSubcommand: () => string; getString: (name: string, required?: boolean) => string };
 	reply: ReturnType<typeof vi.fn>;
+	deferReply: ReturnType<typeof vi.fn>;
+	editReply: ReturnType<typeof vi.fn>;
+	followUp: ReturnType<typeof vi.fn>;
 	deferred: boolean;
 	replied: boolean;
 }
@@ -31,7 +34,7 @@ function fakeChatInteraction(
 	guildId: string | null,
 	channelId: string | null
 ): FakeChatInteraction {
-	return {
+	const interaction: FakeChatInteraction = {
 		commandName: 'server',
 		guildId,
 		channelId,
@@ -41,9 +44,17 @@ function fakeChatInteraction(
 			getString: () => name
 		},
 		reply: vi.fn(async () => {}),
+		// deferReply flips `deferred`, mirroring discord.js, so the handler's post-defer
+		// branch selection (editReply vs reply) is exercised faithfully.
+		deferReply: vi.fn(async () => {
+			interaction.deferred = true;
+		}),
+		editReply: vi.fn(async () => {}),
+		followUp: vi.fn(async () => {}),
 		deferred: false,
 		replied: false
 	};
+	return interaction;
 }
 
 function asChat(i: FakeChatInteraction): ChatInputCommandInteraction {
@@ -84,19 +95,19 @@ describe('handleChatInput failure paths', () => {
 		const interaction = fakeChatInteraction('start', 'mc', GUILD, OTHER_CHANNEL);
 		await handleChatInput(asChat(interaction), db);
 
-		expect(interaction.reply).toHaveBeenCalledTimes(1);
-		const payload = interaction.reply.mock.calls[0][0];
-		expect(payload.flags).toBe(MessageFlags.Ephemeral);
-		expect(payload.content).toContain('このチャンネルでは指定されたサーバーを操作できません。');
+		// Post-defer failure edits the "thinking…" placeholder rather than posting a new reply.
+		expect(interaction.deferReply).toHaveBeenCalledTimes(1);
+		expect(interaction.editReply).toHaveBeenCalledTimes(1);
+		const message = interaction.editReply.mock.calls[0][0];
+		expect(message).toContain('このチャンネルでは指定されたサーバーを操作できません。');
 	});
 
 	it('tells an authorized channel with no matching server the same denial (no name probing)', async () => {
 		const interaction = fakeChatInteraction('status', 'ghost', GUILD, ALLOWED_CHANNEL);
 		await handleChatInput(asChat(interaction), db);
 
-		const payload = interaction.reply.mock.calls[0][0];
-		expect(payload.flags).toBe(MessageFlags.Ephemeral);
-		expect(payload.content).toContain('このチャンネルでは指定されたサーバーを操作できません。');
+		const message = interaction.editReply.mock.calls[0][0];
+		expect(message).toContain('このチャンネルでは指定されたサーバーを操作できません。');
 	});
 
 	it('answers /server list in an unauthorized channel with an ephemeral empty-list message', async () => {

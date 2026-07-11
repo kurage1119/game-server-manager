@@ -117,6 +117,9 @@ export async function handleChatInput(
 
 		const name = interaction.options.getString('name', true);
 
+		// systemctl の各操作は3秒を超えることがあるため、先に defer で応答期限を延ばす。
+		await interaction.deferReply();
+
 		if (sub === 'status') {
 			const { server, status } = await getServerStatusForChannel(
 				db,
@@ -126,7 +129,7 @@ export async function handleChatInput(
 			);
 			const gameName = unitNameBase(server.unitName);
 			console.log(`[discord] ${executor} checked status of ${gameName}: ${status}`);
-			await interaction.reply(`**${gameName}**: ${STATUS_LABELS[status]}(実行: ${executor})`);
+			await interaction.editReply(`**${gameName}**: ${STATUS_LABELS[status]}(実行: ${executor})`);
 			return;
 		}
 
@@ -134,7 +137,7 @@ export async function handleChatInput(
 			const server = await startServerForChannel(db, interaction.guildId, interaction.channelId, name);
 			const gameName = unitNameBase(server.unitName);
 			console.log(`[discord] ${executor} started ${gameName} (${server.unitName})`);
-			await interaction.reply(`**${gameName}** の起動を要求しました。(実行: ${executor})`);
+			await interaction.editReply(`**${gameName}** の起動を要求しました。(実行: ${executor})`);
 			return;
 		}
 
@@ -142,7 +145,7 @@ export async function handleChatInput(
 			const server = await stopServerForChannel(db, interaction.guildId, interaction.channelId, name);
 			const gameName = unitNameBase(server.unitName);
 			console.log(`[discord] ${executor} stopped ${gameName} (${server.unitName})`);
-			await interaction.reply(`**${gameName}** の停止を要求しました。(実行: ${executor})`);
+			await interaction.editReply(`**${gameName}** の停止を要求しました。(実行: ${executor})`);
 			return;
 		}
 
@@ -155,11 +158,13 @@ export async function handleChatInput(
 		} else {
 			console.log(`[discord] denied /server ${sub} by ${executor} in ${interaction.guildId}/${interaction.channelId}`);
 		}
-		const payload = { content: message, flags: MessageFlags.Ephemeral } as const;
-		if (interaction.deferred || interaction.replied) {
-			await interaction.followUp(payload).catch(() => {});
+		if (interaction.deferred && !interaction.replied) {
+			// defer 済みで未応答なら「考え中…」をエラーに差し替える。
+			await interaction.editReply(message).catch(() => {});
+		} else if (interaction.replied) {
+			await interaction.followUp({ content: message, flags: MessageFlags.Ephemeral }).catch(() => {});
 		} else {
-			await interaction.reply(payload).catch(() => {});
+			await interaction.reply({ content: message, flags: MessageFlags.Ephemeral }).catch(() => {});
 		}
 	}
 }
