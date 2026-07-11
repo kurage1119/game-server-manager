@@ -56,7 +56,9 @@ async function seed(db: TestDb): Promise<void> {
 		.values({ username: 'admin', passwordHash: 'x', isAdmin: true, mustChangePassword: false })
 		.returning();
 	const admin: SessionUser = { id: row.id, username: 'admin', isAdmin: true, mustChangePassword: false };
-	const mc = await createServer(db, admin, { name: 'mc', unitName: 'game-mc.service' });
+	// Display name differs from the unit base ('mc') so the autocomplete test proves
+	// suggestions come from the game name (the `*` of game-*.service), not the name.
+	const mc = await createServer(db, admin, { name: 'マイクラ', unitName: 'game-mc.service' });
 	await addChannel(db, admin, mc.id, GUILD, ALLOWED_CHANNEL);
 }
 

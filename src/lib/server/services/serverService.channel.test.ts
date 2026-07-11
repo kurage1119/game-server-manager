@@ -37,15 +37,17 @@ describe('serverService Discord-channel authorization', () => {
 		db = createTestDb();
 		driver = new MockSystemctlDriver();
 		const admin = await insertAdmin(db);
-		const mc = await createServer(db, admin, { name: 'mc', unitName: 'game-mc.service' });
-		await createServer(db, admin, { name: 'valheim', unitName: 'game-valheim.service' });
+		// Display name deliberately differs from the unit base ('mc'), so tests below
+		// prove the Discord layer resolves by the game name (the `*` of game-*.service).
+		const mc = await createServer(db, admin, { name: 'マイクラ', unitName: 'game-mc.service' });
+		await createServer(db, admin, { name: 'ヴァルハイム', unitName: 'game-valheim.service' });
 		await addChannel(db, admin, mc.id, GUILD, ALLOWED_CHANNEL);
 	});
 
 	describe('listServersForChannel (autocomplete / list source)', () => {
 		it('returns only the servers granted to that exact (guild, channel)', async () => {
 			const list = await listServersForChannel(db, GUILD, ALLOWED_CHANNEL);
-			expect(list.map((s) => s.name)).toEqual(['mc']);
+			expect(list.map((s) => s.unitName)).toEqual(['game-mc.service']);
 		});
 
 		it('returns nothing for an unlisted channel, wrong guild, or DM', async () => {
@@ -57,9 +59,9 @@ describe('serverService Discord-channel authorization', () => {
 	});
 
 	describe('getServerForChannel / start / stop / status', () => {
-		it('allows an authorized channel to start, stop, and read status', async () => {
+		it('allows an authorized channel to start, stop, and read status by game name', async () => {
 			const started = await startServerForChannel(db, GUILD, ALLOWED_CHANNEL, 'mc', driver);
-			expect(started.name).toBe('mc');
+			expect(started.unitName).toBe('game-mc.service');
 			let { status } = await getServerStatusForChannel(db, GUILD, ALLOWED_CHANNEL, 'mc', driver);
 			expect(status).toBe('activating');
 
@@ -68,13 +70,21 @@ describe('serverService Discord-channel authorization', () => {
 			expect(status).toBe('deactivating');
 		});
 
+		it('resolves by the game name (unit base), not the display name', async () => {
+			// 'マイクラ' is the display name; the game name is 'mc'. Passing the display
+			// name must be treated as an unknown server.
+			await expect(getServerForChannel(db, GUILD, ALLOWED_CHANNEL, 'マイクラ')).rejects.toThrow(
+				PermissionDeniedError
+			);
+		});
+
 		it('denies a server the channel has no grant for (even though it exists)', async () => {
 			await expect(startServerForChannel(db, GUILD, ALLOWED_CHANNEL, 'valheim', driver)).rejects.toThrow(
 				PermissionDeniedError
 			);
 		});
 
-		it('denies a nonexistent server name with the same error (no name probing)', async () => {
+		it('denies a nonexistent game name with the same error (no probing)', async () => {
 			await expect(getServerForChannel(db, GUILD, ALLOWED_CHANNEL, 'ghost')).rejects.toThrow(
 				PermissionDeniedError
 			);

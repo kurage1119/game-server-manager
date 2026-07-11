@@ -59,7 +59,7 @@
 					<input type="text" name="unitBase" value={data.unitBase} required pattern="[A-Za-z0-9_.@-]+" />
 					<span class="unit-affix unit-affix--suffix">.service</span>
 				</span>
-				<span class="field-hint">中央部分のみ入力(英数字と <span class="mono">. _ @ -</span>)</span>
+				<span class="field-hint">中央部分のみ入力(英数字と <span class="mono">. _ @ -</span>)。この部分が Discord コマンドのゲーム名です。</span>
 			</label>
 			<div>
 				<button type="submit" class="btn btn--primary">更新</button>

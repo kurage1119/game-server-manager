@@ -27,7 +27,8 @@ export const sessions = sqliteTable('sessions', {
 
 export const servers = sqliteTable('servers', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
-	// Also used as the Discord slash-command argument, so keep it short/friendly.
+	// Free display name for the Web UI. (Discord uses the unit base — the `*` of
+	// game-*.service — as its game-name argument, not this.)
 	name: text('name').notNull().unique(),
 	// Must match ^game-[A-Za-z0-9_.@-]+\.service$ — enforced in systemctl/index.ts.
 	unitName: text('unit_name').notNull().unique(),

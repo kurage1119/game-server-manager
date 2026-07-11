@@ -13,7 +13,7 @@ import {
 	getServerStatusForChannel
 } from '../services/serverService';
 import { PermissionDeniedError } from '../services/errors';
-import type { ServiceStatus } from '../systemctl';
+import { unitNameBase, type ServiceStatus } from '../systemctl';
 
 const STATUS_LABELS: Record<ServiceStatus, string> = {
 	active: '🟢 稼働中',
@@ -36,7 +36,7 @@ export function buildCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody
 				.setName('status')
 				.setDescription('サーバーの状態を確認')
 				.addStringOption((opt) =>
-					opt.setName('name').setDescription('サーバー名').setRequired(true).setAutocomplete(true)
+					opt.setName('name').setDescription('ゲーム名(game-*.service の * 部分)').setRequired(true).setAutocomplete(true)
 				)
 		)
 		.addSubcommand((sub) =>
@@ -44,7 +44,7 @@ export function buildCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody
 				.setName('start')
 				.setDescription('サーバーを起動')
 				.addStringOption((opt) =>
-					opt.setName('name').setDescription('サーバー名').setRequired(true).setAutocomplete(true)
+					opt.setName('name').setDescription('ゲーム名(game-*.service の * 部分)').setRequired(true).setAutocomplete(true)
 				)
 		)
 		.addSubcommand((sub) =>
@@ -52,7 +52,7 @@ export function buildCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody
 				.setName('stop')
 				.setDescription('サーバーを停止')
 				.addStringOption((opt) =>
-					opt.setName('name').setDescription('サーバー名').setRequired(true).setAutocomplete(true)
+					opt.setName('name').setDescription('ゲーム名(game-*.service の * 部分)').setRequired(true).setAutocomplete(true)
 				)
 		);
 	return [command.toJSON()];
@@ -67,9 +67,10 @@ export async function handleAutocomplete(
 		const focused = interaction.options.getFocused().toLowerCase();
 		const allowed = await listServersForChannel(db, interaction.guildId, interaction.channelId);
 		const choices = allowed
-			.filter((s) => s.name.toLowerCase().includes(focused))
+			.map((s) => unitNameBase(s.unitName))
+			.filter((base) => base.toLowerCase().includes(focused))
 			.slice(0, 25)
-			.map((s) => ({ name: s.name, value: s.name }));
+			.map((base) => ({ name: base, value: base }));
 		await interaction.respond(choices);
 	} catch (e) {
 		console.error('[discord] autocomplete failed:', e);
@@ -109,7 +110,7 @@ export async function handleChatInput(
 				return;
 			}
 			await interaction.reply(
-				`このチャンネルで操作できるサーバー:\n${allowed.map((s) => `- ${s.name}`).join('\n')}`
+				`このチャンネルで操作できるサーバー:\n${allowed.map((s) => `- ${unitNameBase(s.unitName)}`).join('\n')}`
 			);
 			return;
 		}
@@ -123,22 +124,25 @@ export async function handleChatInput(
 				interaction.channelId,
 				name
 			);
-			console.log(`[discord] ${executor} checked status of ${server.name}: ${status}`);
-			await interaction.reply(`**${server.name}**: ${STATUS_LABELS[status]}(実行: ${executor})`);
+			const gameName = unitNameBase(server.unitName);
+			console.log(`[discord] ${executor} checked status of ${gameName}: ${status}`);
+			await interaction.reply(`**${gameName}**: ${STATUS_LABELS[status]}(実行: ${executor})`);
 			return;
 		}
 
 		if (sub === 'start') {
 			const server = await startServerForChannel(db, interaction.guildId, interaction.channelId, name);
-			console.log(`[discord] ${executor} started ${server.name} (${server.unitName})`);
-			await interaction.reply(`**${server.name}** の起動を要求しました。(実行: ${executor})`);
+			const gameName = unitNameBase(server.unitName);
+			console.log(`[discord] ${executor} started ${gameName} (${server.unitName})`);
+			await interaction.reply(`**${gameName}** の起動を要求しました。(実行: ${executor})`);
 			return;
 		}
 
 		if (sub === 'stop') {
 			const server = await stopServerForChannel(db, interaction.guildId, interaction.channelId, name);
-			console.log(`[discord] ${executor} stopped ${server.name} (${server.unitName})`);
-			await interaction.reply(`**${server.name}** の停止を要求しました。(実行: ${executor})`);
+			const gameName = unitNameBase(server.unitName);
+			console.log(`[discord] ${executor} stopped ${gameName} (${server.unitName})`);
+			await interaction.reply(`**${gameName}** の停止を要求しました。(実行: ${executor})`);
 			return;
 		}
 

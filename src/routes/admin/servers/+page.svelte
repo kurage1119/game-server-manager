@@ -66,7 +66,7 @@
 					required
 					placeholder="例: Minecraft サバイバル"
 				/>
-				<span class="field-hint">表示名・Discordコマンドの引数にも使われます。</span>
+				<span class="field-hint">Web UI での表示名です。</span>
 			</label>
 			<label class="field">
 				<span class="field-label">ユニット名</span>
@@ -83,7 +83,8 @@
 					<span class="unit-affix unit-affix--suffix">.service</span>
 				</span>
 				<span class="field-hint">
-					中央部分のみ入力します。許可文字は英数字と <span class="mono">. _ @ -</span>
+					中央部分のみ入力します。この部分が Discord コマンドのゲーム名になります。許可文字は英数字と
+					<span class="mono">. _ @ -</span>
 				</span>
 			</label>
 			<div>

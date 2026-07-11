@@ -4,7 +4,7 @@ import { servers, permissions, discordChannels } from '../db/schema';
 import type * as schema from '../db/schema';
 import type { SessionUser } from '../auth/session';
 import type { ServiceStatus, SystemctlDriver } from '../systemctl';
-import { getSystemctlDriver, isValidUnitName } from '../systemctl';
+import { getSystemctlDriver, isValidUnitName, buildUnitName } from '../systemctl';
 import { PermissionDeniedError, NotFoundError, ValidationError } from './errors';
 
 type DB = BetterSQLite3Database<typeof schema>;
@@ -248,16 +248,17 @@ export async function listServersForChannel(
 }
 
 /**
- * Resolves a server by name IF this channel is authorized for it.
- * Throws PermissionDeniedError otherwise (covers both "server exists but this
- * channel may not touch it" and "no such server" — a channel should not be able
- * to probe which server names exist).
+ * Resolves a server by its Discord game name — the `*` part of `game-*.service`
+ * (the unit base) — IF this channel is authorized for it. Throws
+ * PermissionDeniedError otherwise (covers both "server exists but this channel
+ * may not touch it" and "no such server" — a channel should not be able to probe
+ * which servers exist).
  */
 export async function getServerForChannel(
 	db: DB,
 	guildId: string | null,
 	channelId: string | null,
-	serverName: string
+	unitBase: string
 ): Promise<ServerRecord> {
 	if (!guildId || !channelId) {
 		throw new PermissionDeniedError('DMからは操作できません。許可されたサーバーのチャンネルで実行してください。');
@@ -270,7 +271,7 @@ export async function getServerForChannel(
 			and(
 				eq(discordChannels.guildId, guildId),
 				eq(discordChannels.channelId, channelId),
-				eq(servers.name, serverName)
+				eq(servers.unitName, buildUnitName(unitBase))
 			)
 		)
 		.limit(1);
@@ -284,10 +285,10 @@ export async function startServerForChannel(
 	db: DB,
 	guildId: string | null,
 	channelId: string | null,
-	serverName: string,
+	unitBase: string,
 	driver: SystemctlDriver = getSystemctlDriver()
 ): Promise<ServerRecord> {
-	const server = await getServerForChannel(db, guildId, channelId, serverName);
+	const server = await getServerForChannel(db, guildId, channelId, unitBase);
 	await driver.start(server.unitName);
 	return server;
 }
@@ -296,10 +297,10 @@ export async function stopServerForChannel(
 	db: DB,
 	guildId: string | null,
 	channelId: string | null,
-	serverName: string,
+	unitBase: string,
 	driver: SystemctlDriver = getSystemctlDriver()
 ): Promise<ServerRecord> {
-	const server = await getServerForChannel(db, guildId, channelId, serverName);
+	const server = await getServerForChannel(db, guildId, channelId, unitBase);
 	await driver.stop(server.unitName);
 	return server;
 }
@@ -308,9 +309,9 @@ export async function getServerStatusForChannel(
 	db: DB,
 	guildId: string | null,
 	channelId: string | null,
-	serverName: string,
+	unitBase: string,
 	driver: SystemctlDriver = getSystemctlDriver()
 ): Promise<{ server: ServerRecord; status: ServiceStatus }> {
-	const server = await getServerForChannel(db, guildId, channelId, serverName);
+	const server = await getServerForChannel(db, guildId, channelId, unitBase);
 	return { server, status: await safeStatus(driver, server.unitName) };
 }
