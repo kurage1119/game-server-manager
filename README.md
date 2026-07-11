@@ -76,4 +76,4 @@ DB は `/var/lib/server-manager/data.db`(起動時に自動作成・マイグレ
 
 ## ライセンス
 
-社内ツール(未定)
+Apache License 2.0 ([LICENSE](./LICENSE) を参照)
