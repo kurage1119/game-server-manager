@@ -33,16 +33,18 @@
 
 	<div class="card">
 		<form method="POST" class="stack">
-			<label class="field">
-				<span class="field-label">現在のパスワード</span>
-				<input
-					class="input"
-					type="password"
-					name="currentPassword"
-					required
-					autocomplete="current-password"
-				/>
-			</label>
+			{#if !data.mustChangePassword}
+				<label class="field">
+					<span class="field-label">現在のパスワード</span>
+					<input
+						class="input"
+						type="password"
+						name="currentPassword"
+						required
+						autocomplete="current-password"
+					/>
+				</label>
+			{/if}
 			<label class="field">
 				<span class="field-label">新しいパスワード <span class="soft">(8文字以上)</span></span>
 				<input

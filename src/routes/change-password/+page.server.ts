@@ -31,9 +31,13 @@ export const actions: Actions = {
 			return fail(400, { error: '新しいパスワードが一致しません。' });
 		}
 
-		const verified = await verifyCredentials(getDb(), user.username, currentPassword);
-		if (!verified) {
-			return fail(400, { error: '現在のパスワードが正しくありません。' });
+		// 仮パスワードでのログイン直後は、そのセッション自体が既に仮パスワードで
+		// 認証済みであるため、現在のパスワードの再入力は不要。
+		if (!user.mustChangePassword) {
+			const verified = await verifyCredentials(getDb(), user.username, currentPassword);
+			if (!verified) {
+				return fail(400, { error: '現在のパスワードが正しくありません。' });
+			}
 		}
 
 		await updatePassword(getDb(), user.id, newPassword);
