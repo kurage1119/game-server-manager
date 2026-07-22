@@ -24,7 +24,9 @@ export const actions: Actions = {
 		} catch (e) {
 			if (e instanceof PermissionDeniedError) return fail(403, { error: e.message });
 			if (e instanceof NotFoundError) return fail(404, { error: e.message });
-			throw e;
+			// systemctl 由来の実行失敗はユーザー操作の一部なのでエラーページではなくバナーで返す
+			console.error(`[web] start action failed for serverId=${serverId}:`, e);
+			return fail(500, { error: 'サーバーの起動に失敗しました。時間をおいて再度お試しください。' });
 		}
 		return { message: '起動を要求しました。' };
 	},
@@ -38,7 +40,8 @@ export const actions: Actions = {
 		} catch (e) {
 			if (e instanceof PermissionDeniedError) return fail(403, { error: e.message });
 			if (e instanceof NotFoundError) return fail(404, { error: e.message });
-			throw e;
+			console.error(`[web] stop action failed for serverId=${serverId}:`, e);
+			return fail(500, { error: 'サーバーの停止に失敗しました。時間をおいて再度お試しください。' });
 		}
 		return { message: '停止を要求しました。' };
 	}

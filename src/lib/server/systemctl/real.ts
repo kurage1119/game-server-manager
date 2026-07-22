@@ -63,15 +63,20 @@ function describeExecFailure(action: string, unitName: string, e: ExecError): Er
 
 /**
  * Real driver: spawns systemctl via execFile (argv only, no shell, so no
- * metacharacter interpretation). start/stop go through sudo; the sudoers rule in
- * deploy/sudoers.d-example restricts svmgr to `systemctl start|stop game-*.service`.
- * `is-active` needs no privileges and runs directly.
+ * metacharacter interpretation). start/stop go through sudo with `--no-block`,
+ * so the call returns as soon as the job is enqueued instead of blocking until
+ * the unit is fully active/inactive — this matches the driver contract in
+ * types.ts (start/stop resolve once the request has been issued). The sudoers
+ * rule in deploy/sudoers.d-example restricts svmgr to `systemctl [--no-block]
+ * start|stop game-*.service`. `is-active` needs no privileges and runs directly.
  */
 export class RealSystemctlDriver implements SystemctlDriver {
 	async start(unitName: string): Promise<void> {
 		assertValidUnitName(unitName);
 		try {
-			await execFileAsync(SUDO, [SYSTEMCTL, 'start', unitName], { timeout: EXEC_TIMEOUT_MS });
+			await execFileAsync(SUDO, [SYSTEMCTL, '--no-block', 'start', unitName], {
+				timeout: EXEC_TIMEOUT_MS
+			});
 		} catch (e) {
 			if (isExecError(e)) throw describeExecFailure('start', unitName, e);
 			throw e;
@@ -81,7 +86,9 @@ export class RealSystemctlDriver implements SystemctlDriver {
 	async stop(unitName: string): Promise<void> {
 		assertValidUnitName(unitName);
 		try {
-			await execFileAsync(SUDO, [SYSTEMCTL, 'stop', unitName], { timeout: EXEC_TIMEOUT_MS });
+			await execFileAsync(SUDO, [SYSTEMCTL, '--no-block', 'stop', unitName], {
+				timeout: EXEC_TIMEOUT_MS
+			});
 		} catch (e) {
 			if (isExecError(e)) throw describeExecFailure('stop', unitName, e);
 			throw e;

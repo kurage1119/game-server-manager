@@ -72,8 +72,8 @@ server_manager2/
 ## systemctl 実行の権限設計
 
 - 管理ツールは専用ユーザー `svmgr` で稼働。ゲームサーバーのユニットは `game-` プレフィックス命名規約
-- sudoers: `svmgr ALL=(root) NOPASSWD: /usr/bin/systemctl start game-*.service, /usr/bin/systemctl stop game-*.service`。`is-active` は非特権で実行
-- **インジェクション対策(多層)**: ①ユニット名を登録時・実行時とも `^game-[A-Za-z0-9_.@-]+\.service$` で強制(`*` `;` スペース等を構造的に排除) ②shell を経由しない `execFile('sudo', ['/usr/bin/systemctl', 'start', unitName])`
+- sudoers: `svmgr ALL=(root) NOPASSWD: /usr/bin/systemctl start game-*.service, /usr/bin/systemctl stop game-*.service, /usr/bin/systemctl --no-block start game-*.service, /usr/bin/systemctl --no-block stop game-*.service`(`--no-block` 形式が現行アプリの実発行分。無印は旧アプリへロールバックした際の互換のためだけに併存。**このファイルはアプリより先に適用すること**——アプリを先に出すと新 argv が旧ルールに一致せず start/stop が即失敗する)。`is-active` は非特権で実行
+- **インジェクション対策(多層)**: ①ユニット名を登録時・実行時とも `^game-[A-Za-z0-9_.@-]+\.service$` で強制(`*` `;` スペース等を構造的に排除) ②shell を経由しない `execFile('sudo', ['/usr/bin/systemctl', '--no-block', 'start', unitName])`(start/stop は要求投入時点で resolve する契約のため `--no-block` を verb の前に指定)
 - **ドライバ抽象化**(Windows開発対応): `SystemctlDriver { start, stop, status }` インターフェース。`SYSTEMCTL_MODE=mock` でインメモリ実装(activating→2秒後active の遷移も擬似再現)、`=real` で execFile 実装。`is-active` の exit code 非0 は状態値として扱う
 
 ## ルート / API 一覧

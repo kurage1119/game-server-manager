@@ -9,10 +9,18 @@
 # (execFile with an argv array), so glob/metacharacter tricks cannot widen
 # this rule from the app side.
 #
+# The `--no-block` forms are what the current app actually invokes (start/stop
+# must return once the request is issued, not once it's fully active/inactive).
+# APPLY THIS FILE BEFORE deploying the app that emits --no-block: deploying the
+# app first (with the old sudoers rule still in place) makes every start/stop
+# fail immediately, since the new argv won't match the old rule. The bare forms
+# (without --no-block) are kept ONLY for rollback compatibility (an older app
+# build reverted after this file is updated), not for deploy-order flexibility.
+#
 # Install:
 #   1. Copy this file:            sudo cp sudoers.d-example /etc/sudoers.d/server-manager
 #   2. Fix permissions:           sudo chmod 0440 /etc/sudoers.d/server-manager
 #   3. ALWAYS validate:           sudo visudo -c
 #      (a broken file in /etc/sudoers.d can lock you out of sudo entirely)
 
-svmgr ALL=(root) NOPASSWD: /usr/bin/systemctl start game-*.service, /usr/bin/systemctl stop game-*.service
+svmgr ALL=(root) NOPASSWD: /usr/bin/systemctl start game-*.service, /usr/bin/systemctl stop game-*.service, /usr/bin/systemctl --no-block start game-*.service, /usr/bin/systemctl --no-block stop game-*.service
