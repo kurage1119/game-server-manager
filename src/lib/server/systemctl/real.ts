@@ -7,6 +7,7 @@ const execFileAsync = promisify(execFile);
 
 const SYSTEMCTL = '/usr/bin/systemctl';
 const SUDO = 'sudo';
+const GAME_UNITCTL = '/usr/local/sbin/game-unitctl';
 const EXEC_TIMEOUT_MS = 30_000;
 
 const KNOWN_STATUSES: ReadonlySet<string> = new Set([
@@ -63,18 +64,23 @@ function describeExecFailure(action: string, unitName: string, e: ExecError): Er
 
 /**
  * Real driver: spawns systemctl via execFile (argv only, no shell, so no
- * metacharacter interpretation). start/stop go through sudo with `--no-block`,
- * so the call returns as soon as the job is enqueued instead of blocking until
- * the unit is fully active/inactive — this matches the driver contract in
- * types.ts (start/stop resolve once the request has been issued). The sudoers
- * rule in deploy/sudoers.d-example restricts svmgr to `systemctl [--no-block]
- * start|stop game-*.service`. `is-active` needs no privileges and runs directly.
+ * metacharacter interpretation). start/stop go through sudo to the
+ * deploy/game-unitctl wrapper (installed at /usr/local/sbin/game-unitctl),
+ * which itself re-validates the unit name and then runs
+ * `systemctl --no-block <verb> <unit>` — so the call returns as soon as the
+ * job is enqueued instead of blocking until the unit is fully
+ * active/inactive, matching the driver contract in types.ts (start/stop
+ * resolve once the request has been issued). The sudoers rule in
+ * deploy/sudoers.d-example restricts svmgr to `game-unitctl start|stop *`;
+ * unit-name validation happens in the wrapper (sudo-rs forbids wildcards in
+ * command arguments, so sudoers itself can no longer match on
+ * `game-*.service`). `is-active` needs no privileges and runs directly.
  */
 export class RealSystemctlDriver implements SystemctlDriver {
 	async start(unitName: string): Promise<void> {
 		assertValidUnitName(unitName);
 		try {
-			await execFileAsync(SUDO, [SYSTEMCTL, '--no-block', 'start', unitName], {
+			await execFileAsync(SUDO, [GAME_UNITCTL, 'start', unitName], {
 				timeout: EXEC_TIMEOUT_MS
 			});
 		} catch (e) {
@@ -86,7 +92,7 @@ export class RealSystemctlDriver implements SystemctlDriver {
 	async stop(unitName: string): Promise<void> {
 		assertValidUnitName(unitName);
 		try {
-			await execFileAsync(SUDO, [SYSTEMCTL, '--no-block', 'stop', unitName], {
+			await execFileAsync(SUDO, [GAME_UNITCTL, 'stop', unitName], {
 				timeout: EXEC_TIMEOUT_MS
 			});
 		} catch (e) {

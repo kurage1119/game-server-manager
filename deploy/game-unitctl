@@ -1,0 +1,64 @@
+#!/bin/sh
+# Root-owned wrapper invoked by svmgr (via the sudoers rule in
+# sudoers.d-example) to start/stop game-*.service units.
+#
+# Why this exists: sudo-rs (Ubuntu's default sudo since 26.04) rejects
+# wildcards anywhere in a command's ARGUMENTS — only a trailing `*` meaning
+# "zero or more subsequent arguments" is allowed, and only as the final
+# token. A sudoers rule like `systemctl start game-*.service` is therefore
+# invalid under sudo-rs (classic sudo accepted it as a glob). This wrapper
+# takes the unit name as an argument and does the validation itself, so the
+# sudoers rule can allow a plain `*` (zero or more subsequent arguments —
+# sudoers does not bound the argument list at all; this wrapper is what
+# forwards only its own `$1` and `$2`) without granting access to
+# arbitrary units.
+#
+# The validation below MUST stay equivalent to UNIT_NAME_PATTERN in
+# src/lib/server/systemctl/types.ts: a `game-` prefix, a `.service` suffix,
+# and a non-empty middle drawn only from [A-Za-z0-9_.@-]. That equivalence is
+# the entire security argument: the app already enforces this pattern at
+# registration/execution time, and this wrapper enforces the same shape
+# again at the privilege boundary, so a crafted unit name can never reach
+# `systemctl` unvalidated.
+#
+# This is deliberately NOT `printf '%s' "$2" | grep -qE '...'`: grep matches
+# LINE BY LINE, so a `$2` containing an embedded newline (e.g.
+# "sshd.service\ngame-x.service") makes grep succeed as soon as any ONE line
+# matches the pattern, while `exec` below still receives the full,
+# newline-containing original string — the validated value and the executed
+# value diverge, and `systemctl` would receive an unvalidated first line.
+# `case` pattern matching operates on the whole string with no line
+# semantics, so this bypass does not apply to it. It also drops grep as an
+# external-command dependency at the privilege boundary.
+#
+# Install (root:root, 0755 — must NOT be writable by svmgr):
+#   sudo cp game-unitctl /usr/local/sbin/game-unitctl
+#   sudo chown root:root /usr/local/sbin/game-unitctl
+#   sudo chmod 0755 /usr/local/sbin/game-unitctl
+#
+# Install this file BEFORE sudoers.d-example (see that file's header for
+# the full ordering requirement).
+
+set -eu
+
+case "${1-}" in
+	start|stop) ;;
+	*) echo "usage: game-unitctl start|stop <unit>" >&2; exit 64;;
+esac
+
+unit=${2-}
+
+# Keep in sync with UNIT_NAME_PATTERN's character class
+# (src/lib/server/systemctl/types.ts): [A-Za-z0-9_.@-]
+case "$unit" in
+	*[!A-Za-z0-9_.@-]*) echo "invalid unit: $unit" >&2; exit 64;;
+esac
+
+# `game-` prefix, `.service` suffix, non-empty middle (the `?*` below is the
+# regex `+`: at least one character between the prefix and suffix).
+case "$unit" in
+	game-?*.service) ;;
+	*) echo "invalid unit: $unit" >&2; exit 64;;
+esac
+
+exec /usr/bin/systemctl --no-block "$1" "$unit"

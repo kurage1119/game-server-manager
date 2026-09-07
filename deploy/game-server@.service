@@ -1,25 +1,34 @@
 # Sample systemd template unit for game servers managed by server-manager.
 #
 # The manager can only control units named game-*.service (enforced both by
-# its unit-name validation and by the sudoers rule), so name your instances
-# accordingly. With this TEMPLATE unit, an instance like
-#   game-server@minecraft.service
-# does NOT match game-*.service in sudoers; template instances are therefore
-# best registered per-game as concrete units instead. Two options:
+# its unit-name validation and by the game-unitctl wrapper that sudoers
+# invokes — see deploy/game-unitctl), so name your instances accordingly.
+# With this TEMPLATE unit, an instance like game-server@minecraft.service
+# DOES match that pattern (`@` is an allowed character), so template
+# instances work the same as concrete units — no per-instance sudoers entry
+# is needed. Two options, either works:
 #
-#   Option A (recommended): one concrete unit per game, e.g.
+#   Option A: one concrete unit per game, e.g.
 #     /etc/systemd/system/game-minecraft.service  (copy this file, drop the @,
 #     hardcode the working directory / start command)
 #
-#   Option B: keep this template but add each instance to sudoers explicitly.
+#   Option B: keep this template, one instance per game, e.g.
+#     game-server@minecraft.service
 #
-# Register in the manager with the exact unit name, e.g. "game-minecraft.service".
+# Register in the manager with the exact unit name, e.g. "game-minecraft.service"
+# (Option A) or "game-server@minecraft.service" (Option B).
 #
-# Install:
+# Install (Option A, one concrete unit per game):
 #   sudo cp game-server@.service /etc/systemd/system/game-minecraft.service
 #   (edit the paths/commands below for the actual game)
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable game-minecraft.service   # optional: start on boot
+#
+# Install (Option B, keep the @ template, one instance per game):
+#   sudo cp game-server@.service /etc/systemd/system/game-server@.service
+#   (edit the paths/commands below; %i becomes the instance name, e.g. minecraft)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable game-server@minecraft.service   # optional: start on boot
 
 [Unit]
 Description=Game server (%i)

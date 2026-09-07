@@ -49,8 +49,10 @@ Restart=on-failure
 RestartSec=5
 
 # Hardening. /var/lib/server-manager must exist and be owned by svmgr (0700).
-# NoNewPrivileges must stay OFF (false/absent): the app invokes sudo for
-# `systemctl start/stop game-*.service` and NoNewPrivileges=true breaks sudo.
+# NoNewPrivileges must stay OFF (false/absent): the app invokes sudo to run
+# deploy/game-unitctl start/stop <unit> (which itself calls
+# `systemctl --no-block start/stop game-*.service`), and NoNewPrivileges=true
+# breaks sudo.
 NoNewPrivileges=false
 ProtectSystem=full
 ReadWritePaths=/var/lib/server-manager

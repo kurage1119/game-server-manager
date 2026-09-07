@@ -8,7 +8,7 @@ Linuxホスト上のゲームサーバー(systemdユニット)を、Web UI と D
 - **ユーザー管理**: 初回アクセスで管理者を作成。以後のユーザー追加は管理者のみ。追加ユーザーは12文字の仮パスワードで初回ログインし、本パスワード設定を強制。仮パスワード再発行あり(既存セッションは全て無効化)
 - **権限**: ユーザー×サーバー単位で「不可 / 閲覧のみ / 操作可」を設定。管理者は全権限
 - **Discord Bot**: `/server list|status|start|stop`。サーバーごとに許可する(Discordサーバー, チャンネル)を登録する許可リスト方式。許可のないチャンネル・DMからは操作不可
-- **安全設計**: ユニット名は `game-*.service` に限定(正規表現 + sudoers の二重制限)、shell を経由しない `execFile` 実行、セッショントークンはハッシュのみDB保存
+- **安全設計**: ユニット名は `game-*.service` に限定(正規表現 + sudo 経由で呼ぶラッパー `deploy/game-unitctl` の二重制限)、shell を経由しない `execFile` 実行、セッショントークンはハッシュのみDB保存
 
 ## 技術構成
 
@@ -44,7 +44,10 @@ sudo mkdir -p /opt/server-manager /var/lib/server-manager
 sudo chown -R svmgr:svmgr /opt/server-manager /var/lib/server-manager
 sudo chmod 0700 /var/lib/server-manager
 
-# 3. sudoers(svmgr に game-*.service の start/stop のみ許可)
+# 3. game-unitctl ラッパー(必ず sudoers より先に配置。ユニット名 game-*.service の検証はこのラッパーが行う)+ sudoers(svmgr に game-unitctl の start/stop 実行のみ許可)
+sudo cp deploy/game-unitctl /usr/local/sbin/game-unitctl
+sudo chown root:root /usr/local/sbin/game-unitctl
+sudo chmod 0755 /usr/local/sbin/game-unitctl
 sudo cp deploy/sudoers.d-example /etc/sudoers.d/server-manager
 sudo chmod 0440 /etc/sudoers.d/server-manager
 sudo visudo -c    # 必ず構文チェック

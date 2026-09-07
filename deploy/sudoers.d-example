@@ -1,26 +1,45 @@
 # sudoers rule for the server-manager service user (svmgr).
 #
-# Allows svmgr to start/stop ONLY units matching game-*.service, with no
+# Allows svmgr to invoke ONLY the game-unitctl wrapper (start/stop), with no
 # password. Status checks (`systemctl is-active`) need no privileges and are
 # NOT listed here on purpose.
 #
-# The application additionally enforces ^game-[A-Za-z0-9_.@-]+\.service$ on
-# every unit name before invoking sudo, and never goes through a shell
-# (execFile with an argv array), so glob/metacharacter tricks cannot widen
-# this rule from the app side.
+# Why this goes through a wrapper instead of a `systemctl start/stop <unit>`
+# rule directly: sudo-rs (Ubuntu's default sudo since 26.04) rejects
+# wildcards anywhere in a command's ARGUMENTS — the previous rule, which
+# matched the unit-name argument with a trailing wildcard (`game-` prefix,
+# `.service` suffix, `*` in between), is a syntax error under sudo-rs
+# (`wildcards are not allowed in command arguments`), even though classic
+# sudo accepted it as a glob. The only wildcard sudo-rs supports in
+# arguments is a bare `*` as the FINAL argument, meaning "zero or more
+# subsequent arguments" (matches the header comment in deploy/game-unitctl).
+# So instead of matching the unit name in sudoers, the app now invokes a
+# fixed, validated wrapper (deploy/game-unitctl) that does that same
+# unit-name check itself. sudoers itself does not bound the argument list at
+# all here — it is the WRAPPER that only ever forwards its own $1 (verb) and
+# $2 (unit) to systemctl, ignoring anything beyond that. This form is also
+# accepted by classic sudo, so one file covers both.
 #
-# The `--no-block` forms are what the current app actually invokes (start/stop
-# must return once the request is issued, not once it's fully active/inactive).
-# APPLY THIS FILE BEFORE deploying the app that emits --no-block: deploying the
-# app first (with the old sudoers rule still in place) makes every start/stop
-# fail immediately, since the new argv won't match the old rule. The bare forms
-# (without --no-block) are kept ONLY for rollback compatibility (an older app
-# build reverted after this file is updated), not for deploy-order flexibility.
+# APPLY BOTH the wrapper (deploy/game-unitctl, installed to
+# /usr/local/sbin/game-unitctl) AND this file BEFORE deploying the app build
+# that invokes the wrapper: deploying the app first (with the wrapper or this
+# rule missing) makes every start/stop fail immediately, since sudo would
+# reject or fail to find the command.
+#
+# There are no bare/rollback-compatibility lines here for an older app build
+# that still calls `systemctl` directly: under sudo-rs, a single invalid line
+# (e.g. the old trailing-wildcard rule described above) makes the ENTIRE
+# sudoers file invalid, so the old wildcard rule cannot be kept alongside
+# this one. Rolling back the app to a pre-wrapper build requires reverting
+# this file too.
 #
 # Install:
-#   1. Copy this file:            sudo cp sudoers.d-example /etc/sudoers.d/server-manager
-#   2. Fix permissions:           sudo chmod 0440 /etc/sudoers.d/server-manager
-#   3. ALWAYS validate:           sudo visudo -c
+#   1. Install the wrapper FIRST: sudo cp game-unitctl /usr/local/sbin/game-unitctl
+#                                  sudo chown root:root /usr/local/sbin/game-unitctl
+#                                  sudo chmod 0755 /usr/local/sbin/game-unitctl
+#   2. Copy this file:            sudo cp sudoers.d-example /etc/sudoers.d/server-manager
+#   3. Fix permissions:           sudo chmod 0440 /etc/sudoers.d/server-manager
+#   4. ALWAYS validate:           sudo visudo -c
 #      (a broken file in /etc/sudoers.d can lock you out of sudo entirely)
 
-svmgr ALL=(root) NOPASSWD: /usr/bin/systemctl start game-*.service, /usr/bin/systemctl stop game-*.service, /usr/bin/systemctl --no-block start game-*.service, /usr/bin/systemctl --no-block stop game-*.service
+svmgr ALL=(root) NOPASSWD: /usr/local/sbin/game-unitctl start *, /usr/local/sbin/game-unitctl stop *

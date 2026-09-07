@@ -72,8 +72,8 @@ server_manager2/
 ## systemctl 実行の権限設計
 
 - 管理ツールは専用ユーザー `svmgr` で稼働。ゲームサーバーのユニットは `game-` プレフィックス命名規約
-- sudoers: `svmgr ALL=(root) NOPASSWD: /usr/bin/systemctl start game-*.service, /usr/bin/systemctl stop game-*.service, /usr/bin/systemctl --no-block start game-*.service, /usr/bin/systemctl --no-block stop game-*.service`(`--no-block` 形式が現行アプリの実発行分。無印は旧アプリへロールバックした際の互換のためだけに併存。**このファイルはアプリより先に適用すること**——アプリを先に出すと新 argv が旧ルールに一致せず start/stop が即失敗する)。`is-active` は非特権で実行
-- **インジェクション対策(多層)**: ①ユニット名を登録時・実行時とも `^game-[A-Za-z0-9_.@-]+\.service$` で強制(`*` `;` スペース等を構造的に排除) ②shell を経由しない `execFile('sudo', ['/usr/bin/systemctl', '--no-block', 'start', unitName])`(start/stop は要求投入時点で resolve する契約のため `--no-block` を verb の前に指定)
+- sudoers: `svmgr ALL=(root) NOPASSWD: /usr/local/sbin/game-unitctl start *, /usr/local/sbin/game-unitctl stop *`。ユニット名の検証は sudoers ではなくラッパー `deploy/game-unitctl`(root:root 0755, `/usr/local/sbin/game-unitctl` に配置)側で行う——sudo-rs(Ubuntu 26.04 既定の sudo)はコマンド引数中のワイルドカードを構文エラーとして拒否するため、旧来の `systemctl start game-*.service` という sudoers ルールはそのままでは書けない。ラッパーは同じ形(`game-` 接頭辞・`.service` 接尾辞・中間は `[A-Za-z0-9_.@-]` の非空)を POSIX の `case` グロブで再検証したうえで `systemctl --no-block start|stop <unit>` を実行する。**ラッパーと本ファイルは両方ともアプリより先に適用すること**——アプリを先に出すとラッパー/ルールが無く start/stop が即失敗する。sudo-rs 環境ではルール1行が不正だとファイル全体が無効になるため、旧ワイルドカード形式とのロールバック互換は維持できない(ロールバック時は本ファイルも合わせて戻す)。`is-active` は非特権で実行
+- **インジェクション対策(多層)**: ①ユニット名を登録時・実行時とも `^game-[A-Za-z0-9_.@-]+\.service$` で強制(`*` `;` スペース等を構造的に排除)。ラッパー `deploy/game-unitctl` も同じパターンで再検証する ②shell を経由しない `execFile('sudo', ['/usr/local/sbin/game-unitctl', 'start', unitName])`(`--no-block` の付与はラッパー側で行う。start/stop は要求投入時点で resolve する契約のため)
 - **ドライバ抽象化**(Windows開発対応): `SystemctlDriver { start, stop, status }` インターフェース。`SYSTEMCTL_MODE=mock` でインメモリ実装(activating→2秒後active の遷移も擬似再現)、`=real` で execFile 実装。`is-active` の exit code 非0 は状態値として扱う
 
 ## ルート / API 一覧
